@@ -103,37 +103,59 @@ export const GameManager = () => {
         });
     }, [speak, nextRound]);
 
-    const measure = useCallback(() => {
+    const measure = useCallback(async () => {
         if (phase !== 'measuring') return;
 
         const config = LEVELS[level];
+        speak("Midiendo en computador cuántico...");
 
-        if (config.mode === 'superposition' || config.mode === 'navigation') {
-            // En modo superposición pura, la probabilidad es siempre 50/50 aleatoria
-            // En navegación, depende del usuario
-            const effectiveProb = config.mode === 'navigation' ? userProb : 0.5;
+        try {
+            let mode = 'superposition';
+            let probability = 0.5;
 
-            const collapseRoll = Math.random();
-            const result = collapseRoll < effectiveProb ? 1 : 0;
+            if (config.mode === 'navigation') {
+                mode = 'navigation';
+                probability = userProb;
+            } else if (config.mode === 'tunneling') {
+                mode = 'tunneling';
+                probability = 0.6; // 60% chance to tunnel
+            }
 
-            playCollapse(result);
-            setLastResult(result === 0 ? 'IZQUIERDA (Cero)' : 'DERECHA (Uno)');
+            const response = await fetch('http://127.0.0.1:5000/api/measure', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode, probability })
+            });
+            const data = await response.json();
 
-            // Wait for audio tail (2s) before speaking
-            setTimeout(() => {
-                speak(result === 0 ? "Colapso en Ket Cero" : "Colapso en Ket Uno", true);
+            if (!data.success) throw new Error("Quantum Error");
+
+            const result = data.result; // 0 or 1
+
+            if (config.mode === 'superposition' || config.mode === 'navigation') {
+                playCollapse(result);
+                setLastResult(result === 0 ? 'IZQUIERDA (Cero)' : 'DERECHA (Uno)');
+
+                // Wait for audio tail (2s) before speaking
+                setTimeout(() => {
+                    speak(result === 0 ? "Colapso en Ket Cero" : "Colapso en Ket Uno", true);
+                    completeRound(config);
+                }, 2000);
+
+            } else if (config.mode === 'tunneling') {
+                const success = result === 1; // 1 = Túnnel Success
+                playTunnelResult(success);
+                speak(success ? "Partícula atravesó." : "Rebote en barrera.", true);
                 completeRound(config);
-            }, 2000);
+            } else {
+                playCollapse(0);
+                speak("Medición completada.");
+                completeRound(config);
+            }
 
-        } else if (config.mode === 'tunneling') {
-            const success = Math.random() > 0.4; // 60% chance
-            playTunnelResult(success);
-            speak(success ? "Partícula atravesó." : "Rebote en barrera.", true);
-            completeRound(config);
-        } else {
-            playCollapse(0);
-            speak("Medición completada.");
-            completeRound(config);
+        } catch (e) {
+            console.error(e);
+            speak("Error de conexión con el backend.");
         }
     }, [phase, level, userProb, speak, playCollapse, playTunnelResult]);
 

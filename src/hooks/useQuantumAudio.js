@@ -229,10 +229,11 @@ export const useQuantumAudio = () => {
         // 0 -> Left Ear Only, 200Hz
         // 1 -> Right Ear Only, 800Hz
 
-        const freq = state === 0 ? 200 : 800;
+        const freq = state === 0 ? 110 : 660; // 110Hz (A2) Grave, 660Hz (E5) Agudo
         const pan = state === 0 ? -1 : 1;
 
         const osc = ctx.createOscillator();
+        osc.type = 'sine';
         osc.frequency.value = freq;
 
         const panner = ctx.createStereoPanner();
@@ -258,10 +259,11 @@ export const useQuantumAudio = () => {
         const now = audioContext.current.currentTime;
         const ctx = audioContext.current;
 
-        const freq = side === 'left' ? 200 : 800;
+        const freq = side === 'left' ? 110 : 660;
         const pan = side === 'left' ? -1 : 1;
 
         const osc = ctx.createOscillator();
+        osc.type = 'sine';
         osc.frequency.value = freq;
         const panner = ctx.createStereoPanner();
         panner.pan.value = pan;
